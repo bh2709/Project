@@ -283,13 +283,119 @@ provstate=combination_country_provstate_df[['provstate_code','provstate']].drop_
 # load the provstate table to the database
 provstate.to_sql(name='provstate', con=cnx, if_exists='append', index=False)
 
+# table location
+# slice the location table from the main dataframe
+location=df[['city_code','country', 'region','provstate_code']]
+location=location.drop_duplicates()
+# rename columns in location table
+location=location.rename(columns={"country": "country_code", "region": "region_code"})
+# load the location table to the database
+location.to_sql(name='location', con=cnx, if_exists='append', index=False)
+
+# table propertyextent
+# slice the propertyextent table from the main dataframe
+propertyextent_df = df[['propextent','propextent_txt']]
+# rename columns
+propertyextent_df.rename(columns = {'propextent_txt':'description'}, inplace = True)
+# drop na & drop duplicated data
+propertyextent_df=propertyextent_df.dropna().drop_duplicates()
+# load table propertyextent to the database
+propertyextent_df.to_sql(name='propertyextent', con=cnx, if_exists='append', index=False)
 
 
+# Table events
+# Create "event" dataframe 
+events= pd.DataFrame({'eventid': df['eventid'],
+                        'date': df['Date'],
+                        'extended': df['extended'],
+                        'city_code': df['city_code'],
+                        'pers': df['pers'],
+                        'icipla': df['icipla'],
+                        'oihl': df['oihl'],
+                        'multiple': df['multiple'],
+                        'success': df['success'],
+                        'suicide': df['suicide'],
+                        'nperps': df['nperps'],
+                        'nperpcap': df['nperpcap'],
+                        'nkill': df['nkill'],
+                        'nkillus': df['nkillus'],
+                        'nkillter': df['nkillter'],
+                        'property': df['property'],
+                        'propextent':df['propextent'],}).drop_duplicates()
+# Load table events to database
+events.to_sql(name='events', con=cnx, if_exists='append', index=False)
+
+# Table weapon_type
+# Create "weapon" dataframe with uniuqe weapon_type_name and drop N/A + duplicates
+weapon_type_df = pd.DataFrame({'weapon_type_id': df['weaptype'], 'weapon_type_name': df['weaptype_txt']}).dropna().drop_duplicates()
+# Load table weapon to database
+weapon_type_df.to_sql(name='weapon_type', con=cnx, if_exists='append', index=False)
 
 
+# Table event_weapon_type
+# Create "event_weapon_type" dataframe with uniuqe customer_id and phone_id and drop N/A + duplicates
+event_weapon_type_df = pd.DataFrame({'eventid': df['eventid'],
+                                     'weapon_type_id': df['weaptype']}).dropna().drop_duplicates()
+# Load table event_weapon_type to database
+event_weapon_type_df.to_sql(name='event_weapon_type', con=cnx, if_exists='append', index=False)
 
+# Table attack_type
+attack_type_df = df[['attacktype', 'attacktype_txt']]
+# rename
+attack_type_df.rename(columns = {'attacktype':'attack_type_id', 'attacktype_txt':'attack_type_txt'}, inplace = True)
+# drop duplicates
+attack_type_df=attack_type_df.dropna().drop_duplicates()
+# load Table attack_type to database
+attack_type_df.to_sql(name='attack_type', con=cnx, if_exists='append', index=False)
 
+# Table event_attack_type
+event_attack_type_df = df[['eventid', 'attacktype']]
+# Rename columns
+event_attack_type_df.rename(columns = {'attacktype':'attack_type_id'}, inplace = True)
+# drop duplicates
+event_attack_type_df=event_attack_type_df.dropna().drop_duplicates() 
+# load Table event_attack_type to database
+event_attack_type_df.to_sql(name='event_attack_type', con=cnx, if_exists='append', index=False)
 
+# Table target_type & Table event_target_type
+df_event_target = df[['eventid','targtype']].dropna().drop_duplicates()
+df_target = df[['targtype','targtype_txt']].dropna().drop_duplicates()
+# Modify dataset target_type
+df_target['targtype']= df_target['targtype'].astype(int)
+df_target.rename(columns={"targtype": "target_type_id", "targtype_txt": "target_type_txt"},inplace = True)
+# Modify dataset event_target
+df_event_target.rename(columns={"targtype": "target_type_id"},inplace = True)
+# load Table target_type to database
+df_target.to_sql(name='target_type', con=cnx, if_exists='append', index=False)
+# load Table event_target_type to database
+df_event_target.to_sql(name='event_target_type', con=cnx, if_exists='append', index=False)
+
+# Table gname
+# Create temporary dataframe with unique gname
+gname_df = pd.DataFrame(df.gname.unique(), columns=['gname'])
+# Add incrementing integers for gname_id
+gname_df.insert(0, 'gname_id', range(1, 1 + len(gname_df)))
+#rename columns
+gname_df.rename(columns = {'gname':'gname_name'}, inplace = True)
+#drop duplicated data
+gname_df=gname_df.dropna().drop_duplicates()
+# load Table gname to database
+gname_df.to_sql(name='gname', con=cnx, if_exists='append', index=False)
+
+# clean the whole dataset again to make sure there is no duplicated data
+df=df.dropna().drop_duplicates()
+
+# Table event_gname
+# Map
+gname_id_list = [gname_df.gname_id[gname_df.gname_name == i].values[0] for i in df.gname]
+# Add gname_id to the combined dataframe
+df.insert(0, 'gname_id', gname_id_list)
+# Slice table event_gname from the main dataframe
+event_gname_df = df[['gname_id', 'eventid']]
+# drop duplicated data
+event_gname_df=event_gname_df.dropna().drop_duplicates()
+# push table event_gname to database
+event_gname_df.to_sql(name='event_gname', con=cnx, if_exists='append', index=False)
 
                            
 
