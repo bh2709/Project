@@ -209,8 +209,89 @@ df_needed = df_needed[~df_needed['gname'].isnull()]
 # generate a new csv
 df_needed.to_csv ('/Users/Iris/Desktop/df_needed.csv')
 
-# Combine day,month,year into one column "time"
+# Combine day,month,year into one new column "time"
+df=pd.DataFrame(df) 
+df.imonth.unique()
+df = df[df.imonth != 0]
+df.iday.unique()
+grouped=df.groupby('iday')['eventid'].count()
+grouped
+df = df[df.iday != 0]
+from datetime import datetime
+df['Date'] = df.apply(lambda row: datetime(row['iyear'], row['imonth'], row['iday']), axis=1)
+# Clean data in the new column
+df=df.drop(['iyear','imonth','iday'], axis=1)
 
+# Create a combine column for Provstate and City
+df = df[df.city != 'Unknown']
+df = df[df.provstate != 'Unknown']
+df['provstate_city'] = df['provstate'] + "_"+df['city']
+# Create a combine column for Provstate and Country
+df['provstate_country'] = df['country_txt'] + "_" +df['provstate']
+
+# Table Country
+# Drop duplicated data
+clean_country=df[['country', 'country_txt']].drop_duplicates()
+country_df=clean_country[['country', 'country_txt']].drop_duplicates()
+country_df.head()
+country_df.rename(columns={"country": "country_code", "country_txt": "country_name"},inplace = True)
+len(country_df)
+# load table country to database
+country_df.to_sql(name='country', con=cnx, if_exists='append', index=False)
+
+# Table Region
+# Drop duplicated data
+len(df[['region', 'region_txt']].drop_duplicates())
+region_df=df[['region', 'region_txt']].drop_duplicates()
+region_df.head()
+region_df.rename(columns={"region": "region_code", "region_txt": "region_name"},inplace = True)
+len(region_df)
+# load table region to database
+region_df.to_sql(name='region', con=cnx, if_exists='append', index=False)
+
+# Table Provstate & Table City
+# Drop null & duplicated data in provstate
+df=df[~df['provstate'].isnull()]
+len(df)
+combination_country_provstate_df=df[['provstate','country_txt']].drop_duplicates()
+# add incrementing integers
+combination_country_provstate_df.insert(0, 'provstate_code', range(1, 1 + len(combination_country_provstate_df)))
+# create a temporary dataframe
+combination_country_provstate_df['provstate_country'] = combination_country_provstate_df['country_txt'] + "_" +combination_country_provstate_df['provstate']
+# Map provstate_code to the main dataframe
+provstate_code_list=[combination_country_provstate_df.provstate_code[combination_country_provstate_df.provstate_country==i].values[0] for i in df.provstate_country]
+df.insert(0, 'provstate_code',provstate_code_list)   
+# Drop null & duplicated data in city
+df=df[~df['city'].isnull()]
+len(df)
+combination_provstate_city_df=df[['provstate','city']].drop_duplicates()
+# add incrementing integers
+combination_provstate_city_df.insert(0, 'city_code', range(1, 1 + len(combination_provstate_city_df)))
+# create a temporary dataframe 
+combination_provstate_city_df['provstate_city'] = combination_provstate_city_df['provstate'] + "_" +combination_provstate_city_df['city']
+# Map city_code to the main dataframe
+city_code_list=[combination_provstate_city_df.city_code[combination_provstate_city_df.provstate_city==i].values[0] for i in df.provstate_city]
+df.insert(0, 'city_code',city_code_list)
+# slice the city table from combination_country_provstate_df 
+city=combination_provstate_city_df[['city_code','city']].drop_duplicates()
+# rename columns
+city=city.rename(columns={"city": "city_name"})
+# load the city table to the database
+city.to_sql(name='city', con=cnx, if_exists='append', index=False)
+# slice the provstate table from combination_country_provstate_df
+provstate=combination_country_provstate_df[['provstate_code','provstate']].drop_duplicates()
+# load the provstate table to the database
+provstate.to_sql(name='provstate', con=cnx, if_exists='append', index=False)
+
+
+
+
+
+
+
+
+
+                           
 
 
 
