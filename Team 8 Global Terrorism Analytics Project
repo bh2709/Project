@@ -1,0 +1,219 @@
+# Database Connection
+address = 'f19server.apan5310.com'
+port = '50208'
+username = 'postgres'
+password = 'sir8k23k'
+dbname = 'Team8'
+postgres_str = ('postgresql://{username}:{password}@{ipaddress}:{port}/{dbname}'.format(username=username,password=password,ipaddress=address,port=port,dbname=dbname))
+
+# Create an engine that connects to PostgreSQL server
+cnx = create_engine(postgres_str)
+
+# Establish the connection
+connection = cnx.connect()
+
+# Building the tables
+stmt='''
+Create table country(
+    country_code integer,
+    country_name varchar(200) not null,
+    Primary key (country_code)
+);
+
+Create table provstate(
+    provstate_code integer,
+    provstate varchar(200) not null,
+    Primary key(provstate_code)
+);
+
+Create table city(
+    city_code integer,
+    city_name varchar(200) not null,
+    Primary key(city_code)
+);
+
+Create table region(
+    region_code integer,
+    region_name varchar(200) not null,
+    Primary key (region_code)
+);
+
+Create table location(
+    country_code integer,
+    region_code integer,
+    provstate_code integer,
+    city_code integer,
+    Primary key(country_code,region_code,provstate_code,city_code) 
+    , FOREIGN KEY (country_code) REFERENCES country (country_code)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (region_code) REFERENCES region (region_code)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (provstate_code) REFERENCES provstate (provstate_code)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (city_code) REFERENCES city (city_code)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+Create table propertyextent(
+    propextent integer,
+    description varchar(200) not null,
+    Primary key(propextent)
+);
+
+Create table events(
+    eventid bigint,
+    Date timestamp,
+    extended integer, 
+    city_code integer, 
+    pers integer, 
+    icipla integer,
+    oihl integer,
+    multiple integer,
+    success integer,
+    suicide integer,
+    nperps integer,
+    nperpcap integer,
+    nkill integer,
+    nkillus integer,
+    nkillter integer,
+    property integer, 
+    propextent integer,
+    Primary Key (eventid)
+    , FOREIGN KEY (city_code) REFERENCES city (city_code)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (propextent) REFERENCES propertyextent(propextent)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    ,CHECK (extended IN (0,1))
+    ,CHECK (PERS IN (0,1))
+    ,CHECK (ICIPLA IN (0,1))
+    ,CHECK (OIHL IN (0,1))
+    ,CHECK (multiple IN (0,1))
+    ,CHECK (success IN (0,1))
+    ,CHECK (suicide IN (0,1))
+    ,CHECK (suicide IN (0,1,-9))
+);
+
+Create table attack_type(
+    attack_type_id integer,
+    attack_type_txt varchar(100) not null,
+    Primary key (attack_type_id)
+);
+
+Create table event_attack_type(
+    eventid bigint,
+    attack_type_id integer,
+    Primary key(eventid,attack_type_id)
+    , FOREIGN KEY (eventid) REFERENCES events (eventid)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (attack_type_id) REFERENCES attack_type (attack_type_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+Create table target_type(
+    target_type_id integer,
+    target_type_txt varchar(100) not null,
+    Primary key (target_type_id)
+);
+
+Create table event_target_type(
+    eventid bigint,
+    target_type_id integer,
+    Primary Key(eventid,target_type_id)
+    , FOREIGN KEY (eventid) REFERENCES events (eventid)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (target_type_id) REFERENCES target_type (target_type_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+
+Create table gname(
+    gname_id integer,
+    gname_name varchar not null,
+    primary key (gname_id)
+);
+
+Create table event_gname(
+    eventid bigint,
+    gname_id integer,
+    Primary Key(eventid,gname_id)
+    , FOREIGN KEY (eventid) REFERENCES events (eventid)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (gname_id) REFERENCES gname (gname_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+Create table weapon_type(
+    weapon_type_id integer,
+    weapon_type_name varchar(100) not null,
+    Primary Key (weapon_type_id)
+);
+
+Create table event_weapon_type(
+    eventid bigint,
+    weapon_type_id integer,
+    Primary Key(eventid,weapon_type_id)
+    , FOREIGN KEY (eventid) REFERENCES events (eventid)
+        ON UPDATE CASCADE ON DELETE CASCADE
+    , FOREIGN KEY (weapon_type_id) REFERENCES weapon_type (weapon_type_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+'''
+connection.execute(stmt)
+
+# Load Python Packages & Load the Dataset into Python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+df=pd.read_csv('/Users/Iris/Desktop/globalterrorismdb_0718dist.csv',encoding='ISO-8859-1')
+len(df)
+terror=pd.read_csv('/Users/Iris/Desktop/globalterrorismdb_0718dist.csv',encoding='ISO-8859-1')
+
+# Data Preparation & Cleaning : Remove duplicate columns 
+df1 = terror.drop(['attacktype2','attacktype2_txt','attacktype3','attacktype3_txt','targtype2','targtype2_txt','targtype3',
+                   'targtype3_txt','gname2','gname3','weaptype2','weaptype2_txt','weaptype3','weaptype3_txt'],axis = 1)
+df2 = terror.drop(['attacktype1','attacktype1_txt','attacktype3','attacktype3_txt','targtype1','targtype1_txt','targtype3',
+                   'targtype3_txt','gname','gname3','weaptype1','weaptype1_txt','weaptype3','weaptype3_txt'],axis = 1)
+df3 = terror.drop(['attacktype1','attacktype1_txt','attacktype2','attacktype2_txt','targtype1','targtype1_txt','targtype2',
+                   'targtype2_txt','gname','gname2','weaptype1','weaptype1_txt','weaptype2','weaptype2_txt'],axis = 1)
+
+# Rename Columns to avoid confusions
+df1.rename(columns={"attacktype1": "attacktype", "attacktype1_txt": "attacktype_txt","targtype1":"targtype","targtype1_txt":"targtype_txt",
+                    "weaptype1":"weaptype","weaptype1_txt":"weaptype_txt"},inplace = True)
+df2.rename(columns={"attacktype2": "attacktype", "attacktype2_txt": "attacktype_txt","targtype2":"targtype","targtype2_txt":"targtype_txt",
+                  "weaptype2":"weaptype","weaptype2_txt":"weaptype_txt","gname2":"gname"},inplace = True)
+df3.rename(columns={"attacktype3": "attacktype", "attacktype3_txt": "attacktype_txt","targtype3":"targtype","targtype3_txt":"targtype_txt",
+                  "weaptype3":"weaptype","weaptype3_txt":"weaptype_txt","gname3":"gname"},inplace = True)
+
+# check the data length
+len(df1) + len(df2) +len(df3)
+
+# rbind data 
+df = pd.concat([df1,df2,df3],axis = 0)
+
+# rename columns with ambiguous column names
+df.rename(columns={'crit1':'pers','crit2':'icipla','crit3':'oihl'}, inplace = True)
+
+# Extra needed columns and clean data
+df_needed = df[['eventid','iyear','imonth','iday','extended','pers','icipla','oihl','multiple','success','suicide',
+                'attacktype','attacktype_txt','targtype','targtype_txt','weaptype','weaptype_txt','nperps','nperpcap',
+                'nkill','nkillus','nkillter','property','propextent','propextent_txt','gname','country','country_txt','region','region_txt',
+                'provstate','city']].drop_duplicates()
+
+# Drop null values
+df_needed = df_needed[~df_needed['attacktype'].isnull()]
+df_needed = df_needed[~df_needed['targtype'].isnull()]
+df_needed = df_needed[~df_needed['weaptype'].isnull()]
+df_needed = df_needed[~df_needed['gname'].isnull()]
+
+# generate a new csv
+df_needed.to_csv ('/Users/Iris/Desktop/df_needed.csv')
+
+# Combine day,month,year into one column "time"
+
+
+
+
+
+
+
